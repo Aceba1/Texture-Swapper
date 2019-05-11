@@ -1,0 +1,9 @@
+﻿{
+  "Id": "aceba1.textureswapper",
+  "DisplayName": "Texture Swapper",
+  "Author": "Aceba1",
+  "Version": "1",
+  "Enable": true,
+  "AssemblyName": "Texture Swapper.dll",
+  "EntryMethod": "Texture_Swapper.Main.Init"
+}
