@@ -9,11 +9,6 @@ using System.IO;
 
 namespace Texture_Swapper
 {
-    /*
-     * ManCustomSkins.m_SkinTextures
-     * ManCustomSkins.m_SkinInfos
-     * ManTechMaterialSwap.m_MaterialsToSwap 
-     */
     public static class Main
     {
         public struct BytePair
@@ -31,6 +26,33 @@ namespace Texture_Swapper
             var harmony = HarmonyInstance.Create("aceba1.textureswapper");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
             LoadTextures();
+            new GameObject().AddComponent<SkinReloader>();
+        }
+
+        private class SkinReloader : MonoBehaviour
+        {
+            void Update()
+            {
+                if (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.R))
+                {
+                    Type TManCustomSkins = typeof(ManCustomSkins);
+                    var m_SkinInfos = TManCustomSkins.GetField("m_SkinInfos", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var thing = (ManCustomSkins.CorporationSkins[])m_SkinInfos.GetValue(ManCustomSkins.inst);
+
+                    foreach (var pair in SwapDictByteToID.Keys.Reverse())
+                    {
+                        thing[(int)pair.Faction].m_SkinsInCorp.RemoveAt(pair.ID);
+                    }
+                    CustomSkins.Clear();
+                    SwapDictIDToByte.Clear();
+                    SwapDictByteToID.Clear();
+
+                    LoadTextures();
+                    var tMTMS = typeof(ManTechMaterialSwap);
+                    (tMTMS.GetField("m_OriginalMaterialLookup", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ManTechMaterialSwap.inst) as Dictionary<string, int>).Clear();
+                    tMTMS.GetMethod("Start", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(ManTechMaterialSwap.inst, null);
+                }
+            }
         }
 
         private static class Patches
@@ -55,6 +77,22 @@ namespace Texture_Swapper
 
         static Type TFactionSubTypes = typeof(FactionSubTypes);
 
+        static void Foo(string TexPath, string type)
+        {
+            string path = Path.Combine(TexPath, type.ToUpper() + ".ExamplePack.tsmod");
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+                var ndir = Directory.GetFiles(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, "../example/" + type));
+                Console.WriteLine("Created directory at " + path + ", getting " + ndir.Length + " files");
+                foreach (string file in ndir)
+                {
+                    FileInfo F = new FileInfo(file);
+                    File.Copy(file, Path.Combine(path, F.Name));
+                }
+            }
+        }
+
         static void LoadTextures()
         {
             SwapDictByteToID = new Dictionary<BytePair, string>();
@@ -69,18 +107,11 @@ namespace Texture_Swapper
                     Directory.CreateDirectory(TexPath);
                     Console.WriteLine("Created Custom Textures folder");
                 }
-                string path = Path.Combine(TexPath, "GSO.ExamplePack.tsmod");
-                if (!Directory.Exists(path))
-                {
-                    Directory.CreateDirectory(path);
-                    var ndir = Directory.GetFiles(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, "../example/gso"));
-                    Console.WriteLine("Created directory at " + path + ", getting " + ndir.Length + " files");
-                    foreach (string file in ndir)
-                    {
-                        FileInfo F = new FileInfo(file);
-                        File.Copy(file, Path.Combine(path, F.Name));
-                    }
-                }
+                Foo(TexPath, "gso");
+                Foo(TexPath, "ven");
+                Foo(TexPath, "gc");
+                Foo(TexPath, "he");
+                Foo(TexPath, "bf");
             }
             catch (Exception E)
             {
