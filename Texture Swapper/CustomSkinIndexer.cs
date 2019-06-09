@@ -21,7 +21,7 @@ namespace Texture_Swapper
                 if (saving)
                 {
                     string SkinName = null;
-                    if (Main.SwapDictByteToID.TryGetValue(new Main.BytePair() { Faction = (byte)ManSpawn.inst.GetCorporation(block.BlockType), ID = block.GetSkinIndex() }, out string NewSkinName)) 
+                    if (Main.SwapDictByteToID.TryGetValue(new Main.SkinPair() { Faction = (byte)ManSpawn.inst.GetCorporation(block.BlockType), ID = block.GetSkinIndex() }, out string NewSkinName)) 
                     {
                         SkinName = NewSkinName;
                     }

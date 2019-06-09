@@ -11,13 +11,14 @@ namespace Texture_Swapper
 {
     public static class Main
     {
-        public struct BytePair
+        public struct SkinPair
         {
             public byte Faction;
             public byte ID;
         }
-        internal static Dictionary<BytePair, string> SwapDictByteToID;
-        internal static Dictionary<string, BytePair> SwapDictIDToByte;
+        internal static Dictionary<FactionSubTypes, int> CustomSkinCounter;
+        internal static Dictionary<SkinPair, string> SwapDictByteToID;
+        internal static Dictionary<string, SkinPair> SwapDictIDToByte;
 
         static List<CustomSkin> CustomSkins = new List<CustomSkin>();
 
@@ -49,7 +50,9 @@ namespace Texture_Swapper
 
                     LoadTextures();
                     var tMTMS = typeof(ManTechMaterialSwap);
-                    (tMTMS.GetField("m_OriginalMaterialLookup", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(ManTechMaterialSwap.inst) as Dictionary<string, int>).Clear();
+                    var fOML = tMTMS.GetField("m_OriginalMaterialLookup", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var list = fOML.GetValue(ManTechMaterialSwap.inst) as Dictionary<string, int>;
+                    list.Clear();
                     tMTMS.GetMethod("Start", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(ManTechMaterialSwap.inst, null);
                 }
             }
@@ -95,8 +98,9 @@ namespace Texture_Swapper
 
         static void LoadTextures()
         {
-            SwapDictByteToID = new Dictionary<BytePair, string>();
-            SwapDictIDToByte = new Dictionary<string, BytePair>();
+            CustomSkinCounter = new Dictionary<FactionSubTypes, int>();
+            SwapDictByteToID = new Dictionary<SkinPair, string>();
+            SwapDictIDToByte = new Dictionary<string, SkinPair>();
 
             var dir = new DirectoryInfo(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, "../../../"));
             string TexPath = Path.Combine(dir.FullName, "Custom Textures");
@@ -201,7 +205,11 @@ namespace Texture_Swapper
                         Button = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
                         Console.Write("ButtonMini, ");
                     }
-                    CustomSkins.Add(new CustomSkin(Name, Name, Faction, Albedo, Metallic, Emission, Preview, Button, ButtonMini));
+                    if (!CustomSkinCounter.ContainsKey(Faction))
+                    {
+                        CustomSkinCounter.Add(Faction, 0);
+                    }
+                    CustomSkins.Add(new CustomSkin(Name, (byte)(255 - CustomSkinCounter[Faction]++), Faction, Albedo, Metallic, Emission, Preview, Button, ButtonMini));
                     Console.WriteLine("processing... \nAdded skin to list!");
                 }
                 catch (Exception E)
@@ -218,9 +226,9 @@ namespace Texture_Swapper
                 try
                 {
                     Console.WriteLine("- " + skin.corporationSkinInfo.m_SkinUIInfo.m_LocalisedString.m_Bank);
-                    var Byte = (byte)thing[(int)skin.Faction].m_SkinsInCorp.Count;
-                    SwapDictByteToID.Add(new BytePair() { ID = Byte, Faction = (byte)skin.Faction }, skin.ID);
-                    SwapDictIDToByte.Add(skin.ID, new BytePair() { ID = Byte, Faction = (byte)skin.Faction });
+                    SkinPair pair = new SkinPair() { ID = skin.bID, Faction = (byte)skin.Faction };
+                    SwapDictByteToID.Add(pair, skin.ID);
+                    SwapDictIDToByte.Add(skin.ID, pair);
                     thing[(int)skin.Faction].m_SkinsInCorp.Add(skin.corporationSkinInfo);
                 }
                 catch (Exception E)
@@ -229,7 +237,15 @@ namespace Texture_Swapper
                 }
             }
             Console.WriteLine("TextureSwapper: Done!");
-            TManCustomSkins.GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ManCustomSkins.inst, null);
+            try
+            {
+                TManCustomSkins.GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(ManCustomSkins.inst, null);
+            }
+            catch (Exception E)
+            {
+                Console.WriteLine("TextureSwapper: Oop wait no, it is broken, hold on...");
+                Console.WriteLine(E.ToString());
+            }
         }
     }
 
@@ -237,13 +253,15 @@ namespace Texture_Swapper
     {
         public CorporationSkinInfo corporationSkinInfo;
         public string ID;
+        public byte bID;
         public FactionSubTypes Faction;
 
         static Sprite SpriteFromImage(Texture2D texture, float Scale = 1f) => Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(texture.width * 0.5f, texture.height * 0.5f), Mathf.Max(texture.width, texture.height) * Scale);
 
-        public CustomSkin(string Name, string ID, FactionSubTypes Faction, Texture2D Albedo, Texture2D Metallic, Texture2D Emissive, Texture2D Preview, Texture2D Button, Texture2D ButtonMini)
+        public CustomSkin(string Name, byte bID, FactionSubTypes Faction, Texture2D Albedo, Texture2D Metallic, Texture2D Emissive, Texture2D Preview, Texture2D Button, Texture2D ButtonMini)
         {
-            this.ID = ID;
+            ID = Name;
+            this.bID = bID;
             this.Faction = Faction;
             var preview = Preview != null ? SpriteFromImage(Preview) : SpriteFromImage(Albedo);
             var button = Button != null ? SpriteFromImage(Button) : preview;
@@ -254,7 +272,7 @@ namespace Texture_Swapper
                 m_Metal = Metallic,
                 m_Emissive = Emissive
             };
-            Console.WriteLine("SetTextures");
+            Console.WriteLine(" >Setting Textures");
             corporationSkinInfo.m_SkinUIInfo = new CorporationSkinUIInfo()
             {
                 m_LocalisedString = new LocalisedString()
@@ -266,6 +284,11 @@ namespace Texture_Swapper
                 m_SkinMiniPaletteImage = ButtonMini != null ? SpriteFromImage(ButtonMini) : button,
                 m_SkinLocked = false
             };
+            try
+            {
+                UnstableWrap.AddMoreInfoToSkin(corporationSkinInfo, bID, Faction);
+            }
+            catch { /* fail silently */ }
         }
     }
 }
