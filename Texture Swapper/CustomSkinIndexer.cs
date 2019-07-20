@@ -8,49 +8,64 @@ namespace Texture_Swapper
 {
     class CustomSkinIndexer : Module
     {
+        static Type Type = typeof(CustomSkinIndexer);
         private CustomSkinIndexer()
         {
             base.block.serializeEvent.Subscribe(new Action<bool, TankPreset.BlockSpec>(this.OnSerialize));
-            base.block.serializeTextEvent.Subscribe(new Action<bool, TankPreset.BlockSpec>(this.OnSerialize));
+            //base.block.serializeTextEvent.Subscribe(new Action<bool, TankPreset.BlockSpec>(this.OnSerialize));
         }
 
         private void OnSerialize(bool saving, TankPreset.BlockSpec blockSpec)
         {
-            try
+            var corp = ManSpawn.inst.GetCorporation(block.BlockType);
+            byte f = (byte)corp;
+            if (Main.SwapDictByteToID.ContainsKey(f))
             {
                 if (saving)
                 {
-                    string SkinName = null;
-                    if (Main.SwapDictByteToID.TryGetValue(new Main.SkinPair() { Faction = (byte)ManSpawn.inst.GetCorporation(block.BlockType), ID = block.GetSkinIndex() }, out string NewSkinName)) 
+                    try
                     {
-                        SkinName = NewSkinName;
+                        if (Main.SwapDictByteToID.ContainsKey(f) && Main.SwapDictByteToID[f].TryGetValue(block.GetSkinIndex(), out string NewSkinName))
+                        {
+                            blockSpec.Store(Type, "SkinName", NewSkinName);
+                        }
+                        else if (block.GetSkinIndex() != 0)
+                        {
+                            Console.WriteLine();
+                        }
                     }
-                    CustomSkinIndexer.SerialData serialData = new CustomSkinIndexer.SerialData()
-                    {
-                        SkinName = SkinName
-                    };
-                    serialData.Store(blockSpec.saveState);
+                    catch { Console.WriteLine("TextureSwapper [Save] FAILED"); }
                 }
                 else
                 {
-                    CustomSkinIndexer.SerialData serialData2 = Module.SerialData<CustomSkinIndexer.SerialData>.Retrieve(blockSpec.saveState);
-                    if (serialData2 != null)
+                    try
                     {
-                        if (!string.IsNullOrEmpty(serialData2.SkinName))
+                        string str = null;
+
+                        CustomSkinIndexer.SerialData serialData2 = Module.SerialData<CustomSkinIndexer.SerialData>.Retrieve(blockSpec.saveState);
+                        if (serialData2 != null)
                         {
-                            if (Main.SwapDictIDToByte.TryGetValue(serialData2.SkinName, out var Index))
+                            str = serialData2.SkinName;
+                        }
+                        else
+                        {
+                            string prefix = string.Format("{0} {1} ", Type, "SkinName");
+                            try
                             {
-                                block.SetSkinIndex(Index.ID);
+                                str = blockSpec.textSerialData.Single((string s) => s.StartsWith(prefix)).Substring(prefix.Length);
                             }
-                            else
-                            {
-                                block.SetSkinIndex(0);
-                            }
+                            catch { }
+                        }
+
+                        if (!string.IsNullOrEmpty(str) && Main.SwapDictIDToByte.ContainsKey(f) && Main.SwapDictIDToByte[f].TryGetValue(str, out byte Index))
+                        {
+                            block.SetSkinIndex(Index);
                         }
                     }
+                    catch { Console.WriteLine("TextureSwapper [load] FAILED"); }
                 }
             }
-            catch { }
+            new CustomSkinIndexer.SerialData().Remove(blockSpec.saveState);
         }
 
         [Serializable]

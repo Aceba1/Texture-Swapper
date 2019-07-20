@@ -11,14 +11,9 @@ namespace Texture_Swapper
 {
     public static class Main
     {
-        public struct SkinPair
-        {
-            public byte Faction;
-            public byte ID;
-        }
         internal static Dictionary<FactionSubTypes, int> CustomSkinCounter;
-        internal static Dictionary<SkinPair, string> SwapDictByteToID;
-        internal static Dictionary<string, SkinPair> SwapDictIDToByte;
+        internal static Dictionary<byte, Dictionary<byte, string>> SwapDictByteToID;
+        internal static Dictionary<byte, Dictionary<string, byte>> SwapDictIDToByte;
 
         static List<CustomSkin> CustomSkins = new List<CustomSkin>();
 
@@ -36,19 +31,13 @@ namespace Texture_Swapper
             {
                 if (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.R))
                 {
-                    Type TManCustomSkins = typeof(ManCustomSkins);
-                    var m_SkinInfos = TManCustomSkins.GetField("m_SkinInfos", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var thing = (ManCustomSkins.CorporationSkins[])m_SkinInfos.GetValue(ManCustomSkins.inst);
-
-                    foreach (var pair in SwapDictByteToID.Keys.Reverse())
+                    Console.WriteLine("TextureSwapper: Begin");
+                    foreach (var skin in CustomSkins)
                     {
-                        thing[(int)pair.Faction].m_SkinsInCorp.RemoveAt(pair.ID);
+                        GetSkinData(skin.Path, skin);
                     }
-                    CustomSkins.Clear();
-                    SwapDictIDToByte.Clear();
-                    SwapDictByteToID.Clear();
+                    ApplySkins(true);
 
-                    LoadTextures();
                     var tMTMS = typeof(ManTechMaterialSwap);
                     var fOML = tMTMS.GetField("m_OriginalMaterialLookup", BindingFlags.NonPublic | BindingFlags.Instance);
                     var list = fOML.GetValue(ManTechMaterialSwap.inst) as Dictionary<string, int>;
@@ -99,8 +88,8 @@ namespace Texture_Swapper
         static void LoadTextures()
         {
             CustomSkinCounter = new Dictionary<FactionSubTypes, int>();
-            SwapDictByteToID = new Dictionary<SkinPair, string>();
-            SwapDictIDToByte = new Dictionary<string, SkinPair>();
+            SwapDictByteToID = new Dictionary<byte, Dictionary<byte, string>>();
+            SwapDictIDToByte = new Dictionary<byte, Dictionary<string, byte>>();
 
             var dir = new DirectoryInfo(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, "../../../"));
             string TexPath = Path.Combine(dir.FullName, "Custom Textures");
@@ -124,116 +113,165 @@ namespace Texture_Swapper
             Console.WriteLine("TextureSwapper: Begin");
             foreach (var texpack in new DirectoryInfo(TexPath).EnumerateDirectories())
             {
+                GetSkinData(texpack);
+            }
+            ApplySkins(false);
+        }
+
+        static void GetSkinData(DirectoryInfo texpack, CustomSkin Update = null)
+        {
+            try
+            {
+                if (!texpack.Exists) return;
+                string Name = texpack.Name;
+                int lastindex = Name.LastIndexOf('.');
+                int firstindex = Name.IndexOf('.');
+                Console.Write("\nReached " + texpack.Name);
+                if (lastindex == -1 || firstindex == lastindex)
+                {
+                    Console.WriteLine("\n" + texpack.FullName + " does not have the proper naming scheme! (Folder must be named as Corp.Texture Name.Author, for example, GSO.Gold.1249 )");
+                    return;
+                }
+                string Prefix = Name.Substring(0, firstindex);
+                Console.Write(", Faction:" + Prefix);
+                FactionSubTypes Faction = FactionSubTypes.NULL;
                 try
                 {
-                    string Name = texpack.Name;
-                    int lastindex = Name.LastIndexOf('.');
-                    int firstindex = Name.IndexOf('.');
-                    Console.Write("\nReached " + texpack.Name);
-                    if (lastindex == -1 || firstindex == lastindex)
+                    Faction = (FactionSubTypes)Enum.Parse(TFactionSubTypes, Prefix, true);
+                }
+                catch
+                {
+                    Console.WriteLine("Could not find Corporation! The valid prefixes are:");
+                    foreach (var name in Enum.GetNames(TFactionSubTypes))
                     {
-                        Console.WriteLine("\n" + texpack.FullName + " does not have the proper naming scheme! (Folder must be named as Corp.Texture Name.Author, for example, GSO.Gold.1249 )");
-                        continue;
+                        Console.WriteLine(" " + name);
                     }
-                    string Prefix = Name.Substring(0, firstindex);
-                    Console.Write(", Faction:" + Prefix);
-                    FactionSubTypes Faction = FactionSubTypes.NULL;
-                    try
-                    {
-                        Faction = (FactionSubTypes)Enum.Parse(TFactionSubTypes, Prefix, true);
-                    }
-                    catch
-                    {
-                        Console.WriteLine("Could not find Corporation! The valid prefixes are:");
-                        foreach (var name in Enum.GetNames(TFactionSubTypes))
-                        {
-                            Console.WriteLine(" " + name);
-                        }
-                    }
-                    Console.WriteLine(", FactionID:" + (int)Faction);
-                    string fpath = Path.Combine(texpack.FullName, "1.png");
-                    Texture2D Albedo = new Texture2D(2, 2);
-                    if (File.Exists(fpath))
-                    {
-                        Albedo = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("Albedo, ");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Couldn't find Albedo (1.png), ");
-                    }
-                    fpath = Path.Combine(texpack.FullName, "2.png");
-                    Texture2D Metallic = new Texture2D(2, 2);
-                    if (File.Exists(fpath))
-                    {
-                        Metallic = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("Metallic, ");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Couldn't find Metallic (2.png), ");
-                    }
-                    fpath = Path.Combine(texpack.FullName, "3.png");
-                    Texture2D Emission = new Texture2D(2, 2);
-                    if (File.Exists(fpath))
-                    {
-                        Emission = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("Emission, ");
-                    }
-                    else
-                    {
-                        Console.Write("Couldn't find Emission (2.png), ");
-                    }
-                    fpath = Path.Combine(texpack.FullName, "preview.png");
-                    Texture2D Preview = null;
-                    if (File.Exists(fpath))
-                    {
-                        Preview = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("Preview, ");
-                    }
-                    fpath = Path.Combine(texpack.FullName, "button.png");
-                    Texture2D Button = null;
-                    if (File.Exists(fpath))
-                    {
-                        Button = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("Button, ");
-                    }
-                    fpath = Path.Combine(texpack.FullName, "buttonmini.png");
-                    Texture2D ButtonMini = null;
-                    if (File.Exists(fpath))
-                    {
-                        Button = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
-                        Console.Write("ButtonMini, ");
-                    }
-                    if (!CustomSkinCounter.ContainsKey(Faction))
-                    {
-                        CustomSkinCounter.Add(Faction, 0);
-                    }
-                    CustomSkins.Add(new CustomSkin(Name, (byte)(255 - CustomSkinCounter[Faction]++), Faction, Albedo, Metallic, Emission, Preview, Button, ButtonMini));
+                }
+                Console.WriteLine(", FactionID:" + (int)Faction);
+                string fpath = Path.Combine(texpack.FullName, "1.png");
+                Texture2D Albedo = new Texture2D(2, 2);
+                if (File.Exists(fpath))
+                {
+                    Albedo = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("Albedo, ");
+                }
+                else
+                {
+                    Console.WriteLine("Couldn't find Albedo (1.png), ");
+                }
+                fpath = Path.Combine(texpack.FullName, "2.png");
+                Texture2D Metallic = new Texture2D(2, 2);
+                if (File.Exists(fpath))
+                {
+                    Metallic = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("Metallic, ");
+                }
+                else
+                {
+                    Console.WriteLine("Couldn't find Metallic (2.png), ");
+                }
+                fpath = Path.Combine(texpack.FullName, "3.png");
+                Texture2D Emission = new Texture2D(2, 2);
+                if (File.Exists(fpath))
+                {
+                    Emission = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("Emission, ");
+                }
+                else
+                {
+                    Console.Write("Couldn't find Emission (2.png), ");
+                }
+                fpath = Path.Combine(texpack.FullName, "preview.png");
+                Texture2D Preview = null;
+                if (File.Exists(fpath))
+                {
+                    Preview = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("Preview, ");
+                }
+                fpath = Path.Combine(texpack.FullName, "button.png");
+                Texture2D Button = null;
+                if (File.Exists(fpath))
+                {
+                    Button = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("Button, ");
+                }
+                fpath = Path.Combine(texpack.FullName, "buttonmini.png");
+                Texture2D ButtonMini = null;
+                if (File.Exists(fpath))
+                {
+                    Button = ImageFromFile(System.IO.File.ReadAllBytes(fpath));
+                    Console.Write("ButtonMini, ");
+                }
+                if (!CustomSkinCounter.ContainsKey(Faction))
+                {
+                    CustomSkinCounter.Add(Faction, 0);
+                }
+
+                if (Update != null)
+                {
+                    Update.UpdateCorporationSkinInfo(Albedo, Metallic, Emission);
+                    Update.UpdateSkinUIInfo(Preview, Button, ButtonMini);
+                    Console.WriteLine("processing... \nUpdated skin in list!");
+                }
+                else
+                {
+                    CustomSkins.Add(new CustomSkin(texpack, Name, (byte)(255 - CustomSkinCounter[Faction]++), Faction, Albedo, Metallic, Emission, Preview, Button, ButtonMini));
                     Console.WriteLine("processing... \nAdded skin to list!");
                 }
-                catch (Exception E)
-                {
-                    Console.WriteLine("\nEXCEPTION! " + E.ToString());
-                }
             }
-            Console.WriteLine("\nReached all textures, applying skins...");
+            catch (Exception E)
+            {
+                Console.WriteLine("\nEXCEPTION! " + E.ToString());
+            }
+        }
+
+        static void ApplySkins(bool Update)
+        {
+            Console.WriteLine("\nApplying skins...");
             Type TManCustomSkins = typeof(ManCustomSkins);
             var m_SkinInfos = TManCustomSkins.GetField("m_SkinInfos", BindingFlags.NonPublic | BindingFlags.Instance);
             var thing = (ManCustomSkins.CorporationSkins[])m_SkinInfos.GetValue(ManCustomSkins.inst);
-            foreach (CustomSkin skin in CustomSkins)
+            if (Update)
             {
-                try
+                foreach (CustomSkin skin in CustomSkins)
                 {
-                    Console.WriteLine("- " + skin.corporationSkinInfo.m_SkinUIInfo.m_LocalisedString.m_Bank);
-                    SkinPair pair = new SkinPair() { ID = skin.bID, Faction = (byte)skin.Faction };
-                    SwapDictByteToID.Add(pair, skin.ID);
-                    SwapDictIDToByte.Add(skin.ID, pair);
-                    thing[(int)skin.Faction].m_SkinsInCorp.Add(skin.corporationSkinInfo);
+                    var t = thing[(int)skin.Faction].m_SkinsInCorp;
+                    t.RemoveAt(t.Count-1);
                 }
-                catch (Exception E)
+                foreach (CustomSkin skin in CustomSkins)
                 {
-                    Console.WriteLine(E.ToString());
+                    try
+                    {
+                        Console.WriteLine("- " + skin.corporationSkinInfo.m_SkinUIInfo.m_LocalisedString.m_Bank);
+                        thing[(int)skin.Faction].m_SkinsInCorp.Add(skin.corporationSkinInfo);
+                    }
+                    catch (Exception E)
+                    {
+                        Console.WriteLine(E.ToString());
+                    }
+                }
+            }
+            else
+            {
+                foreach (CustomSkin skin in CustomSkins)
+                {
+                    try
+                    {
+                        Console.WriteLine("- " + skin.corporationSkinInfo.m_SkinUIInfo.m_LocalisedString.m_Bank);
+                        byte f = (byte)skin.Faction;
+                        if (!SwapDictByteToID.ContainsKey(f))
+                        {
+                            SwapDictByteToID.Add(f, new Dictionary<byte, string>());
+                            SwapDictIDToByte.Add(f, new Dictionary<string, byte>());
+                        }
+                        SwapDictByteToID[f].Add(skin.bID, skin.ID);
+                        SwapDictIDToByte[f].Add(skin.ID, skin.bID);
+                        thing[(int)skin.Faction].m_SkinsInCorp.Add(skin.corporationSkinInfo);
+                    }
+                    catch (Exception E)
+                    {
+                        Console.WriteLine(E.ToString());
+                    }
                 }
             }
             Console.WriteLine("TextureSwapper: Done!");
@@ -254,12 +292,31 @@ namespace Texture_Swapper
         public CorporationSkinInfo corporationSkinInfo;
         public string ID;
         public byte bID;
+        public DirectoryInfo Path;
         public FactionSubTypes Faction;
 
         static Sprite SpriteFromImage(Texture2D texture, float Scale = 1f) => Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(texture.width * 0.5f, texture.height * 0.5f), Mathf.Max(texture.width, texture.height) * Scale);
 
-        public CustomSkin(string Name, byte bID, FactionSubTypes Faction, Texture2D Albedo, Texture2D Metallic, Texture2D Emissive, Texture2D Preview, Texture2D Button, Texture2D ButtonMini)
+        public void UpdateCorporationSkinInfo(Texture2D Albedo = null, Texture2D Metallic = null, Texture2D Emissive = null)
         {
+            var ti = corporationSkinInfo.m_SkinTextureInfo;
+            if (Albedo != null) ti.m_Albedo = Albedo;
+            if (Metallic != null) ti.m_Metal = Metallic;
+            if (Emissive != null) ti.m_Emissive = Emissive;
+        }
+
+        public void UpdateSkinUIInfo(Texture2D Preview, Texture2D Button, Texture2D ButtonMini)
+        {
+            var suii = corporationSkinInfo.m_SkinUIInfo;
+
+            if (Preview != null) suii.m_PreviewImage = SpriteFromImage(Preview);
+            if (Button != null) suii.m_SkinButtonImage = SpriteFromImage(Button);
+            if (ButtonMini != null) suii.m_SkinMiniPaletteImage = SpriteFromImage(ButtonMini);
+        }
+
+        public CustomSkin(DirectoryInfo Path, string Name, byte bID, FactionSubTypes Faction, Texture2D Albedo, Texture2D Metallic, Texture2D Emissive, Texture2D Preview, Texture2D Button, Texture2D ButtonMini)
+        {
+            this.Path = Path;
             ID = Name;
             this.bID = bID;
             this.Faction = Faction;
