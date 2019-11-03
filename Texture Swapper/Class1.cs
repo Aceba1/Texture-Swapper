@@ -71,7 +71,7 @@ namespace Texture_Swapper
 
         static void Foo(string TexPath, string type)
         {
-            string path = Path.Combine(TexPath, type.ToUpper() + ".ExamplePack.tsmod");
+            string path = Path.Combine(TexPath, type.ToUpper() + ".Example.Author");
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);
@@ -100,18 +100,21 @@ namespace Texture_Swapper
                     Directory.CreateDirectory(TexPath);
                     Console.WriteLine("Created Custom Textures folder");
                 }
-                Foo(TexPath, "gso");
-                Foo(TexPath, "ven");
-                Foo(TexPath, "gc");
-                Foo(TexPath, "he");
-                Foo(TexPath, "bf");
+                if (!new DirectoryInfo(TexPath).EnumerateDirectories().Any())
+                {
+                    Foo(TexPath, "gso");
+                    Foo(TexPath, "ven");
+                    Foo(TexPath, "gc");
+                    Foo(TexPath, "he");
+                    Foo(TexPath, "bf");
+                }
             }
             catch (Exception E)
             {
                 Console.WriteLine("Could not access \"" + TexPath + "\"!\n" + E.Message);
             }
             Console.WriteLine("TextureSwapper: Begin");
-            foreach (var texpack in new DirectoryInfo(TexPath).EnumerateDirectories())
+            foreach (var texpack in new DirectoryInfo(TexPath).GetDirectories("*.*.*", SearchOption.AllDirectories))
             {
                 GetSkinData(texpack);
             }
@@ -127,11 +130,6 @@ namespace Texture_Swapper
                 int lastindex = Name.LastIndexOf('.');
                 int firstindex = Name.IndexOf('.');
                 Console.Write("\nReached " + texpack.Name);
-                if (lastindex == -1 || firstindex == lastindex)
-                {
-                    Console.WriteLine("\n" + texpack.FullName + " does not have the proper naming scheme! (Folder must be named as Corp.Texture Name.Author, for example, GSO.Gold.1249 )");
-                    return;
-                }
                 string Prefix = Name.Substring(0, firstindex);
                 Console.Write(", Faction:" + Prefix);
                 FactionSubTypes Faction = FactionSubTypes.NULL;
@@ -141,7 +139,7 @@ namespace Texture_Swapper
                 }
                 catch
                 {
-                    Console.WriteLine("Could not find Corporation! The valid prefixes are:");
+                    Console.WriteLine("Could not find corporation! The valid prefixes are:");
                     foreach (var name in Enum.GetNames(TFactionSubTypes))
                     {
                         Console.WriteLine(" " + name);
