@@ -19,8 +19,8 @@ namespace Texture_Swapper
 
         public static void Init()
         {
-            var harmony = HarmonyInstance.Create("aceba1.textureswapper");
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
+            //var harmony = HarmonyInstance.Create("aceba1.textureswapper");
+            //harmony.PatchAll(Assembly.GetExecutingAssembly());
             LoadTextures();
             new GameObject().AddComponent<SkinReloader>();
         }
@@ -47,17 +47,17 @@ namespace Texture_Swapper
             }
         }
 
-        private static class Patches
-        {
-            [HarmonyPatch(typeof(TankBlock), "OnPool")]
-            static class TankBlock_Construct
-            {
-                static void Prefix(TankBlock __instance)
-                {
-                    __instance.gameObject.AddComponent<CustomSkinIndexer>();
-                }
-            }
-        }
+        //private static class Patches
+        //{
+        //    [HarmonyPatch(typeof(TankBlock), "OnPool")]
+        //    static class TankBlock_Construct
+        //    {
+        //        static void Prefix(TankBlock __instance)
+        //        {
+        //            __instance.gameObject.AddComponent<CustomSkinIndexer>();
+        //        }
+        //    }
+        //}
 
     static Texture2D ImageFromFile(byte[] DATA)
         {

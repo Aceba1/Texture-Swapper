@@ -9,7 +9,7 @@ namespace Texture_Swapper
     class CustomSkinIndexer : Module
     {
         static Type Type = typeof(CustomSkinIndexer);
-        private CustomSkinIndexer()
+        private void OnPool()
         {
             base.block.serializeEvent.Subscribe(new Action<bool, TankPreset.BlockSpec>(this.OnSerialize));
             //base.block.serializeTextEvent.Subscribe(new Action<bool, TankPreset.BlockSpec>(this.OnSerialize));
