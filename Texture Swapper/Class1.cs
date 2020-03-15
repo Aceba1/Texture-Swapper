@@ -139,10 +139,15 @@ namespace Texture_Swapper
                 }
                 catch
                 {
-                    Console.WriteLine("Could not find corporation! The valid prefixes are:");
-                    foreach (var name in Enum.GetNames(TFactionSubTypes))
+                    if(int.TryParse(Prefix, out var id))
                     {
-                        Console.WriteLine(" " + name);
+                        Faction = (FactionSubTypes)id;
+                    } else {
+                        Console.WriteLine("Could not find corporation! The valid prefixes are:");
+                        foreach (var name in Enum.GetNames(TFactionSubTypes))
+                        {
+                            Console.WriteLine(" " + name);
+                        }
                     }
                 }
                 Console.WriteLine(", FactionID:" + (int)Faction);
