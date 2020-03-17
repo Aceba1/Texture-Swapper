@@ -5,5 +5,6 @@
   "Version": "1",
   "Enable": true,
   "AssemblyName": "Texture Swapper.dll",
-  "EntryMethod": "Texture_Swapper.Main.Init"
+  "EntryMethod": "Texture_Swapper.Main.Init",
+  "Priority": "Last"
 }
