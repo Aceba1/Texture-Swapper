@@ -107,6 +107,7 @@ namespace Texture_Swapper
                     Foo(TexPath, "gc");
                     Foo(TexPath, "he");
                     Foo(TexPath, "bf");
+                    Foo(TexPath, "exp");
                 }
             }
             catch (Exception E)
@@ -321,6 +322,8 @@ namespace Texture_Swapper
             var preview = Preview != null ? SpriteFromImage(Preview) : SpriteFromImage(Albedo);
             var button = Button != null ? SpriteFromImage(Button) : preview;
             corporationSkinInfo = ScriptableObject.CreateInstance<CorporationSkinInfo>();
+            corporationSkinInfo.m_SkinUniqueID = bID;
+            corporationSkinInfo.m_Corporation = Faction;
             corporationSkinInfo.m_SkinTextureInfo = new SkinTextures()
             {
                 m_Albedo = Albedo,
@@ -339,11 +342,6 @@ namespace Texture_Swapper
                 m_SkinMiniPaletteImage = ButtonMini != null ? SpriteFromImage(ButtonMini) : button,
                 m_SkinLocked = false
             };
-            try
-            {
-                UnstableWrap.AddMoreInfoToSkin(corporationSkinInfo, bID, Faction);
-            }
-            catch { /* fail silently */ }
         }
     }
 }
